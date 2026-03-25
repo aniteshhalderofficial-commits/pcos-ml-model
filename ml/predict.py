@@ -3,18 +3,20 @@ import pandas as pd
 import numpy as np
 import json
 
+# -----------------------------
+# Load BOTH models
+# -----------------------------
 
+model_with_cycle = joblib.load("ml/models/pcos_model.pkl")
+model_no_cycle = joblib.load("ml/models/pcos_model_no_cycle.pkl")
 
-# Load Trained Model
-
-
-MODEL_PATH = "ml/models/pcos_model.pkl"
 THRESHOLD = 0.33
 
-model = joblib.load(MODEL_PATH)
 
-
+# -----------------------------
 # Risk Categorization
+# -----------------------------
+
 def categorize_risk(prob):
     if prob < 0.2:
         return "Very Low"
@@ -26,26 +28,22 @@ def categorize_risk(prob):
         return "High Risk"
     else:
         return "Very High Risk"
-    
 
 
 def prediction_confidence(prob):
-
     if prob < 0.55:
         return "Low confidence prediction"
-
     elif prob < 0.75:
         return "Moderate confidence prediction"
-
     elif prob < 0.90:
         return "High confidence prediction"
-
     else:
         return "Very high confidence prediction"
-    
 
+
+# -----------------------------
 # Lifestyle Suggestions
-
+# -----------------------------
 
 def lifestyle_suggestions(stage):
     if stage == "Very Low":
@@ -69,9 +67,9 @@ def lifestyle_suggestions(stage):
         ]
 
 
-
-# Sleep Modifier (Advisory Only)
-
+# -----------------------------
+# Sleep Advisory
+# -----------------------------
 
 def sleep_modifier_message(sleep_rating):
     if sleep_rating is None:
@@ -82,128 +80,86 @@ def sleep_modifier_message(sleep_rating):
     except:
         return "Invalid sleep rating provided."
 
-    # ADD THIS VALIDATION
     if sleep_rating < 1 or sleep_rating > 10:
         return "Sleep rating must be between 1 and 10."
 
     if sleep_rating <= 4:
-        return "Poor sleep quality may worsen insulin resistance and hormonal imbalance. Improving sleep hygiene is strongly recommended."
-
+        return "Poor sleep quality may worsen insulin resistance and hormonal imbalance."
     elif 5 <= sleep_rating <= 6:
-        return "Average sleep quality. Improving sleep consistency may support hormonal balance."
-
+        return "Average sleep quality. Improving sleep consistency may help."
     elif 7 <= sleep_rating <= 8:
-        return "Good sleep quality supports metabolic and hormonal health."
-
-    elif sleep_rating >= 9:
-        return "Excellent sleep quality is protective for endocrine and metabolic stability."
-
-
-# Top Contributing Factors
+        return "Good sleep quality supports hormonal balance."
+    else:
+        return "Excellent sleep quality is protective."
 
 
-def get_top_factors(input_df):
-    importances = model.feature_importances_
-
-    contribution_df = pd.DataFrame({
-        "Feature": input_df.columns,
-        "Contribution": input_df.iloc[0].values * importances
-    })
-
-    contribution_df["Abs"] = np.abs(contribution_df["Contribution"])
-    contribution_df = contribution_df.sort_values(by="Abs", ascending=False)
-
-    core_features = [
-        "Cycle(R/I)",
-        "Weight gain(Y/N)",
-        "hair growth(Y/N)",
-        "Skin darkening (Y/N)"
-    ]
-
-    return contribution_df[
-        contribution_df["Feature"].isin(core_features)
-    ].sort_values(by="Abs", ascending=False)["Feature"].tolist()
+# -----------------------------
+# Probability Range
+# -----------------------------
 
 def probability_range(prob):
-
     lower = max(0, prob - 0.03)
     upper = min(1, prob + 0.03)
-
     return f"{round(lower,3)} - {round(upper,3)}"
 
-# Main Prediction Function
 
+# -----------------------------
+# Prediction Function
+# -----------------------------
 
 def predict_pcos(input_data: dict):
-    """
-    input_data must contain:
 
-    Age (yrs)
-    Cycle(R/I)
-    Cycle length(days)
-    Weight gain(Y/N)
-    hair growth(Y/N)
-    Skin darkening (Y/N)
-    Hair loss(Y/N)
-    Pimples(Y/N)
-    Fast food (Y/N)
-    Reg.Exercise(Y/N)
-    BMI
-    Sleep Rating (1-10)  -> advisory only (not used in ML)
-    """
-
-    # Extract sleep separately
     sleep_rating = input_data.get("Sleep Rating (1-10)")
 
-    # Remove sleep before ML prediction
+    # Remove sleep from model input
     model_input = input_data.copy()
     model_input.pop("Sleep Rating (1-10)", None)
 
     input_df = pd.DataFrame([model_input])
 
-    # Predict probability
-    probability = model.predict_proba(input_df)[0][1]
+    # -----------------------------
+    # MODEL 1 (WITH CYCLE)
+    # -----------------------------
+    prob_with_cycle = model_with_cycle.predict_proba(input_df)[0][1]
 
-    confidence = prediction_confidence(probability)
+    # -----------------------------
+    # MODEL 2 (WITHOUT CYCLE)
+    # -----------------------------
+    input_no_cycle = input_df.drop(columns=["Cycle(R/I)"])
+    prob_no_cycle = model_no_cycle.predict_proba(input_no_cycle)[0][1]
 
-    # Apply threshold
-    prediction = 1 if probability >= THRESHOLD else 0
+    # -----------------------------
+    # FINAL PROBABILITY (AVERAGE)
+    # -----------------------------
+    final_prob = (prob_with_cycle + prob_no_cycle) / 2
 
-    # Determine stage
-    stage = categorize_risk(probability)
+    prediction = 1 if final_prob >= THRESHOLD else 0
+    stage = categorize_risk(final_prob)
+    confidence = prediction_confidence(final_prob)
 
-    # Core contributing factors
-    top_factors = get_top_factors(input_df)
-
-
-    # Sleep advisory
     sleep_message = sleep_modifier_message(sleep_rating)
 
-    
     return {
-    "risk_probability": round(float(probability), 3),
-    "probability_range": probability_range(probability),
-    "risk_stage": stage,
-    "prediction_label": prediction,
-    "prediction_confidence": confidence,
-    "top_contributing_factors": top_factors,
-    "lifestyle_recommendations": lifestyle_suggestions(stage),
-    "sleep_advisory": sleep_message
+        "risk_probability": round(float(final_prob), 3),
+        "probability_range": probability_range(final_prob),
+        "risk_stage": stage,
+        "prediction_label": prediction,
+        "prediction_confidence": confidence,
+        "model_with_cycle": round(float(prob_with_cycle), 3),
+        "model_without_cycle": round(float(prob_no_cycle), 3),
+        "lifestyle_recommendations": lifestyle_suggestions(stage),
+        "sleep_advisory": sleep_message
     }
 
 
-
-# Test Block
-
+# -----------------------------
+# TEST BLOCK
+# -----------------------------
 
 if __name__ == "__main__":
 
     sample_input = {
         "Age (yrs)": 24,
-        # Cycle(R/I) meaning
-        # 2 → Mostly Non-PCOS cycles
-        # 4 → Many PCOS cases observed
-        # 5 → Rare extreme irregular case
         "Cycle(R/I)": 4,
         "Cycle length(days)": 40,
         "Weight gain(Y/N)": 1,
@@ -214,10 +170,8 @@ if __name__ == "__main__":
         "Fast food (Y/N)": 1,
         "Reg.Exercise(Y/N)": 0,
         "BMI": 28.3,
-        "Sleep Rating (1-10)": 3
+        "Sleep Rating (1-10)": 5
     }
 
     result = predict_pcos(sample_input)
-
-    print("\nPrediction Result:\n")
     print(json.dumps(result, indent=4))

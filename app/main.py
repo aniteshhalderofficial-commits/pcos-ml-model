@@ -5,7 +5,10 @@ from ml.predict import predict_pcos
 app = FastAPI(title="PCOS Early Risk Detection API")
 
 
+# -----------------------------
 # Input Schema
+# -----------------------------
+
 class PCOSInput(BaseModel):
     Age_yrs: int
     Cycle_R_I: int
@@ -22,13 +25,17 @@ class PCOSInput(BaseModel):
     Sleep_Rating_1_10: int
 
 
+# -----------------------------
 # Prediction Endpoint
+# -----------------------------
+
 @app.post("/predict")
 def predict(data: PCOSInput):
 
     if data.Height_cm <= 0:
         return {"error": "Height must be greater than zero"}
 
+    # Calculate BMI
     bmi = data.Weight_kg / ((data.Height_cm / 100) ** 2)
 
     input_dict = {

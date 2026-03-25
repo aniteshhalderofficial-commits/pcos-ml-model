@@ -3,3 +3,19 @@ _pycache_/
 *.pyc
 .env
 .ipynb_checkpoints/
+
+#Large datasets
+ml/data/*.csv
+ml/data/*.xlsx
+ml/data/*.xls
+!ml/data/pcos_combined_dataset.csv
+
+#images
+ml/data/PCOS/
+*.png
+*.jpg
+
+#systems
+.DS_Store
+Thumbs.db
+

@@ -5,13 +5,14 @@ import joblib
 
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import GradientBoostingClassifier
-from sklearn.metrics import accuracy_score, classification_report, roc_auc_score
-from sklearn.metrics import roc_curve
+from sklearn.metrics import accuracy_score, classification_report, roc_auc_score, roc_curve
 from imblearn.over_sampling import SMOTE
 import matplotlib.pyplot as plt
 
 
+# -----------------------------
 # Load Dataset
+# -----------------------------
 
 file_path = "ml/data/pcos_combined_dataset.csv"
 df = pd.read_csv(file_path)
@@ -19,7 +20,9 @@ df = pd.read_csv(file_path)
 df.columns = df.columns.str.strip()
 
 
+# -----------------------------
 # Feature Selection
+# -----------------------------
 
 selected_columns = [
     "PCOS (Y/N)",
@@ -40,7 +43,7 @@ df = df[selected_columns]
 
 
 # -----------------------------
-# FIX 1: Convert Cycle (reduce dominance)
+# Reduce Cycle Dominance
 # -----------------------------
 
 df["Cycle(R/I)"] = df["Cycle(R/I)"].map({
@@ -51,7 +54,7 @@ df["Cycle(R/I)"] = df["Cycle(R/I)"].map({
 
 
 # -----------------------------
-# FIX 2: Interaction Features (MOST IMPORTANT)
+# Interaction Features
 # -----------------------------
 
 df["Cycle_HairGrowth"] = df["Cycle(R/I)"] * df["hair growth(Y/N)"]
@@ -67,24 +70,18 @@ df["PCOS (Y/N)"] = df["PCOS (Y/N)"].astype(int)
 
 
 # -----------------------------
-# Correlation Check
-# -----------------------------
-
-print("\nFeature Correlation with Target:")
-print(df.corr()["PCOS (Y/N)"].sort_values(ascending=False))
-
-
-# -----------------------------
-# Handle Missing Values
+# Missing Values
 # -----------------------------
 
 df["Fast food (Y/N)"] = pd.to_numeric(df["Fast food (Y/N)"], errors="coerce")
 df = df.fillna(0)
 
 
-# -----------------------------
-# Train-Test Split
-# -----------------------------
+# =============================
+# MODEL 1 — WITH CYCLE
+# =============================
+
+print("\n===== TRAINING MODEL WITH CYCLE =====")
 
 X = df.drop(columns=["PCOS (Y/N)"])
 y = df["PCOS (Y/N)"]
@@ -96,91 +93,142 @@ X_train, X_test, y_train, y_test = train_test_split(
     stratify=y
 )
 
-
-# -----------------------------
-# SMOTE Balancing
-# -----------------------------
-
 smote = SMOTE(random_state=42)
 X_train_res, y_train_res = smote.fit_resample(X_train, y_train)
 
-
-# -----------------------------
-# Model Training (Controlled Depth)
-# -----------------------------
-
-gb_model = GradientBoostingClassifier(
+model_with_cycle = GradientBoostingClassifier(
     max_depth=2,
     n_estimators=150,
     learning_rate=0.05,
     random_state=42
 )
 
-gb_model.fit(X_train_res, y_train_res)
+model_with_cycle.fit(X_train_res, y_train_res)
+
+prob_with_cycle = model_with_cycle.predict_proba(X_test)[:, 1]
+pred_with_cycle = (prob_with_cycle >= 0.33).astype(int)
+
+print("\n--- WITH CYCLE ---")
+print("Accuracy:", accuracy_score(y_test, pred_with_cycle))
+print("ROC-AUC:", roc_auc_score(y_test, prob_with_cycle))
+print(classification_report(y_test, pred_with_cycle))
 
 
-# -----------------------------
-# Evaluate Model
-# -----------------------------
+# =============================
+# MODEL 2 — WITHOUT CYCLE
+# =============================
 
-gb_prob = gb_model.predict_proba(X_test)[:, 1]
+print("\n===== TRAINING MODEL WITHOUT CYCLE =====")
 
-threshold = 0.33
-gb_pred = (gb_prob >= threshold).astype(int)
+X_no_cycle = df.drop(columns=["PCOS (Y/N)", "Cycle(R/I)"])
+y = df["PCOS (Y/N)"]
 
-print("\n===== Final Model Evaluation =====")
-print("\nAccuracy:", accuracy_score(y_test, gb_pred))
-print("\nROC-AUC:", roc_auc_score(y_test, gb_prob))
-print("\nClassification Report:\n")
-print(classification_report(y_test, gb_pred))
+X_train_nc, X_test_nc, y_train_nc, y_test_nc = train_test_split(
+    X_no_cycle, y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+
+X_train_nc_res, y_train_nc_res = smote.fit_resample(X_train_nc, y_train_nc)
+
+model_no_cycle = GradientBoostingClassifier(
+    max_depth=2,
+    n_estimators=150,
+    learning_rate=0.05,
+    random_state=42
+)
+
+model_no_cycle.fit(X_train_nc_res, y_train_nc_res)
+
+prob_no_cycle = model_no_cycle.predict_proba(X_test_nc)[:, 1]
+pred_no_cycle = (prob_no_cycle >= 0.33).astype(int)
+
+print("\n--- WITHOUT CYCLE ---")
+print("Accuracy:", accuracy_score(y_test_nc, pred_no_cycle))
+print("ROC-AUC:", roc_auc_score(y_test_nc, prob_no_cycle))
+print(classification_report(y_test_nc, pred_no_cycle))
 
 
-# -----------------------------
-# Feature Importance
-# -----------------------------
+# =============================
+# ROC CURVE COMPARISON
+# =============================
+
+fpr_wc, tpr_wc, _ = roc_curve(y_test, prob_with_cycle)
+fpr_nc, tpr_nc, _ = roc_curve(y_test_nc, prob_no_cycle)
+
+plt.figure(figsize=(6,6))
+
+plt.plot(fpr_wc, tpr_wc, label=f"With Cycle (AUC={roc_auc_score(y_test, prob_with_cycle):.3f})")
+plt.plot(fpr_nc, tpr_nc, label=f"Without Cycle (AUC={roc_auc_score(y_test_nc, prob_no_cycle):.3f})")
+
+plt.plot([0,1], [0,1], 'k--')
+
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("ROC Curve Comparison")
+plt.legend()
+
+plt.savefig("ml/models/roc_comparison.png", dpi=300)
+plt.show()
+
+
+# =============================
+# FEATURE IMPORTANCE (WITH CYCLE MODEL)
+# =============================
 
 importance_df = pd.DataFrame({
     "Feature": X_train.columns,
-    "Importance": gb_model.feature_importances_
+    "Importance": model_with_cycle.feature_importances_
 }).sort_values(by="Importance", ascending=False)
 
-print("\nFeature Importance:\n")
+print("\nFeature Importance (With Cycle):\n")
 print(importance_df)
 
-
-# Plot Feature Importance
 plt.figure(figsize=(8,5))
 plt.barh(importance_df["Feature"], importance_df["Importance"])
 plt.gca().invert_yaxis()
+
 plt.xlabel("Importance Score")
-plt.title("Feature Importance – PCOS Model")
+plt.title("Feature Importance – With Cycle Model")
+
 plt.tight_layout()
 plt.savefig("ml/models/feature_importance.png", dpi=300)
 plt.show()
 
+# =============================
+# FEATURE IMPORTANCE (WITHOUT CYCLE MODEL)
+# =============================
 
-# -----------------------------
-# ROC Curve
-# -----------------------------
+importance_nc_df = pd.DataFrame({
+    "Feature": X_train_nc.columns,
+    "Importance": model_no_cycle.feature_importances_
+}).sort_values(by="Importance", ascending=False)
 
-fpr, tpr, _ = roc_curve(y_test, gb_prob)
+print("\nFeature Importance (Without Cycle):\n")
+print(importance_nc_df)
 
-plt.figure(figsize=(6,6))
-plt.plot(fpr, tpr, label=f"AUC = {roc_auc_score(y_test, gb_prob):.3f}")
-plt.plot([0,1], [0,1], 'k--')
-plt.xlabel("False Positive Rate")
-plt.ylabel("True Positive Rate")
-plt.title("ROC Curve")
-plt.legend()
-plt.savefig("ml/models/roc_curve.png", dpi=300)
+
+# Plot Feature Importance (WITHOUT CYCLE)
+plt.figure(figsize=(8,5))
+
+plt.barh(importance_nc_df["Feature"], importance_nc_df["Importance"])
+plt.gca().invert_yaxis()
+
+plt.xlabel("Importance Score")
+plt.title("Feature Importance – Without Cycle Model")
+
+plt.tight_layout()
+plt.savefig("ml/models/feature_importance_no_cycle.png", dpi=300)
 plt.show()
 
-
-# -----------------------------
-# Save Model
-# -----------------------------
+# =============================
+# SAVE MODELS
+# =============================
 
 os.makedirs("ml/models", exist_ok=True)
-joblib.dump(gb_model, "ml/models/pcos_model.pkl")
 
-print("\nModel saved successfully!")
+joblib.dump(model_with_cycle, "ml/models/pcos_model.pkl")
+joblib.dump(model_no_cycle, "ml/models/pcos_model_no_cycle.pkl")
+
+print("\nBoth models saved successfully!")
