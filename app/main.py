@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from ml.predict import predict_pcos
+from config.db import db   # ✅ direct db import
 
 app = FastAPI(title="PCOS Early Risk Detection API")
 
@@ -8,7 +9,6 @@ app = FastAPI(title="PCOS Early Risk Detection API")
 # -----------------------------
 # Input Schema
 # -----------------------------
-
 class PCOSInput(BaseModel):
     Age_yrs: int
     Cycle_R_I: int
@@ -26,9 +26,20 @@ class PCOSInput(BaseModel):
 
 
 # -----------------------------
+# MongoDB Test Endpoint
+# -----------------------------
+@app.get("/test-db")
+def test_db():
+    try:
+        db.command("ping")
+        return {"message": "MongoDB Connected ✅"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# -----------------------------
 # Prediction Endpoint
 # -----------------------------
-
 @app.post("/predict")
 def predict(data: PCOSInput):
 
@@ -36,8 +47,11 @@ def predict(data: PCOSInput):
         return {"error": "Height must be greater than zero"}
 
     # Calculate BMI
-    bmi = data.Weight_kg / ((data.Height_cm / 100) ** 2)
+    weight = data.Weight_kg
+    height = data.Height_cm / 100
+    bmi = weight / (height * height)
 
+    # Model input format
     input_dict = {
         "Age (yrs)": data.Age_yrs,
         "Cycle(R/I)": data.Cycle_R_I,
@@ -53,6 +67,18 @@ def predict(data: PCOSInput):
         "Sleep Rating (1-10)": data.Sleep_Rating_1_10
     }
 
+    # Get prediction
     result = predict_pcos(input_dict)
+
+    # -----------------------------
+    # Save to MongoDB 🔥
+    # -----------------------------
+    try:
+        db.predictions.insert_one({
+            "input": input_dict,
+            "result": result
+        })
+    except Exception as e:
+        return {"error": f"Prediction done but DB save failed: {str(e)}"}
 
     return result

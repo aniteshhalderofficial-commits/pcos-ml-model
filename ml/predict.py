@@ -115,7 +115,28 @@ def predict_pcos(input_data: dict):
     model_input = input_data.copy()
     model_input.pop("Sleep Rating (1-10)", None)
 
+    # Create DataFrame
     input_df = pd.DataFrame([model_input])
+
+    # -----------------------------
+    # ADD ENGINEERED FEATURES
+    # -----------------------------
+    input_df["Cycle_HairGrowth"] = input_df["Cycle(R/I)"] * input_df["hair growth(Y/N)"]
+    input_df["Cycle_SkinDark"] = input_df["Cycle(R/I)"] * input_df["Skin darkening (Y/N)"]
+    input_df["Cycle_WeightGain"] = input_df["Cycle(R/I)"] * input_df["Weight gain(Y/N)"]
+
+    # -----------------------------
+    # MATCH MODEL FEATURES EXACTLY (IMPORTANT FIX)
+    # -----------------------------
+    model_features = model_with_cycle.feature_names_in_
+
+    # Add missing columns
+    for col in model_features:
+        if col not in input_df.columns:
+            input_df[col] = 0
+
+    # Ensure exact order
+    input_df = input_df[model_features]
 
     # -----------------------------
     # MODEL 1 (WITH CYCLE)
@@ -129,7 +150,7 @@ def predict_pcos(input_data: dict):
     prob_no_cycle = model_no_cycle.predict_proba(input_no_cycle)[0][1]
 
     # -----------------------------
-    # FINAL PROBABILITY (AVERAGE)
+    # FINAL PROBABILITY
     # -----------------------------
     final_prob = (prob_with_cycle + prob_no_cycle) / 2
 
