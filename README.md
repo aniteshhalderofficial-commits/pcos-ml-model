@@ -1,136 +1,211 @@
-**PCOS Early Risk Detection System (ML + API)**
+# 🩺 PCOS Early Risk Detection System using Machine Learning, FastAPI & Flutter
 
-Overview:
+An AI-powered **Early Risk Prediction System for Polycystic Ovary Syndrome (PCOS)** that combines **Machine Learning**, a **FastAPI backend**, and a **Flutter-based mobile application** to provide **non-invasive, instant, and accessible PCOS risk screening**.
 
-This project is a Machine Learning-based early risk detection system for PCOS (Polycystic Ovary Syndrome).
+The system predicts early PCOS risk using a **dual-model Gradient Boosting architecture** trained on healthcare datasets and exposes predictions through a REST API integrated with a Flutter mobile application.
 
-It uses a dual-model architecture to improve both:
-
-- Prediction performance
-- Clinical reliability
-
-The system is exposed via a FastAPI backend, making it easy to integrate with frontend applications.
+> **Disclaimer:** This system is designed for **early risk screening only** and **not for medical diagnosis**. Clinical consultation and validation are required.
 
 ---
 
-Key Features:
+## Key Features
 
-- Early risk prediction using ML
-- Dual-model system (reduces bias from single feature dominance)
-- Lifestyle recommendations
-- Sleep advisory integration
-- REST API for easy integration
+✅ Early PCOS risk prediction using Machine Learning  
+✅ Dual-model architecture to reduce cycle dominance bias  
+✅ FastAPI REST API backend for real-time predictions  
+✅ Flutter mobile application (Android/iOS/Web support)  
+✅ Lifestyle recommendations based on prediction outcome  
+✅ Sleep advisory integration  
+✅ Five-tier risk stratification framework  
+✅ Guest mode + authenticated user support  
+✅ Prediction history support  
+✅ Cloud deployment ready (Render)
 
 ---
 
-Model Architecture:
+# System Architecture
 
-🔹 Model A — Screening Model
+The project follows a **three-tier client-server architecture**:
 
-- Uses all features including Cycle(R/I)
-- High sensitivity (detects most PCOS cases)
+```text
+User
+   ↓
+Flutter Mobile App
+   ↓ (HTTP POST / JSON)
+FastAPI Backend
+   ↓
+Dual ML Models
+   ↓
+Risk Prediction
+   ↓
+JSON Response
+   ↓
+Flutter Result Screen
+```
 
-🔹 Model B — Confirmation Model
+### Prediction Pipeline
 
-- Excludes Cycle(R/I)
-- Focuses on:
-  - Hair growth
-  - Skin darkening
-  - Weight gain
-  - BMI
+1. User enters health information in Flutter App  
+2. Data sent to FastAPI backend via REST API  
+3. Input validated using **Pydantic schema**  
+4. BMI + interaction features calculated  
+5. Model A (with cycle data) generates prediction  
+6. Model B (without cycle data) generates prediction  
+7. Final risk score calculated:
 
-🔹 Final Prediction
-
-The final risk is computed as:
-
+```text
 Final Probability = (Model A + Model B) / 2
+```
+
+8. Risk stage, confidence score, lifestyle recommendations generated  
+9. Response returned to mobile application
 
 ---
 
-Features Used:
+# Machine Learning Methodology
+
+The backend uses a **Dual Gradient Boosting Model Architecture** for better reliability and reduced feature bias.
+
+## 🔹 Model A — Screening Model
+
+Uses **all features**, including:
+
+- Cycle(R/I)
+- Cycle Length
+- BMI
+- Symptoms
+
+### Purpose:
+High clinical sensitivity for detecting potential PCOS cases.
+
+---
+
+## 🔹 Model B — Confirmation Model
+
+Excludes:
+
+- Cycle(R/I)
+
+Focuses on:
+
+- Hair Growth
+- Skin Darkening
+- Weight Gain
+- BMI
+- Lifestyle-related indicators
+
+### Purpose:
+Reduces over-reliance on menstrual cycle irregularity.
+
+---
+
+## 🔹 Final Prediction
+
+Final risk score:
+
+```text
+P_final = (P_ModelA + P_ModelB) / 2
+```
+
+This helps reduce **single-feature dominance bias** while maintaining high recall.
+
+---
+
+# Dataset & Preprocessing
+
+The final dataset contains **3,541 records**.
+
+| Dataset | Records | Source |
+|----------|---------|--------|
+| Kaggle PCOS Dataset | 541 | Kerala Hospital Clinical Data |
+| Rotterdam Criteria Dataset | 3000 | Synthetic Clinical Data |
+| Final Combined Dataset | 3541 | Merged Dataset |
+
+### Preprocessing Steps
+
+- Data cleaning
+- Feature engineering
+- BMI calculation
+- Interaction feature creation
+- Missing value handling
+- SMOTE oversampling (`k=5`)
+- Stratified train-test split
+
+### Engineered Features
+
+- `Cycle_HairGrowth`
+- `Cycle_WeightGain`
+- `Cycle_SkinDark`
+
+---
+
+# Comparative Model Evaluation
+
+Multiple classifiers were evaluated:
+
+| Model | Accuracy | Recall | ROC-AUC |
+|--------|----------|---------|----------|
+| Logistic Regression | 86.2% | 72% | 0.889 |
+| Random Forest | 86.2% | 75% | 0.889 |
+| Gradient Boosting | 90.27% | 97% | **0.967** |
+
+Gradient Boosting performed best and was selected.
+
+---
+
+# Final Model Performance
+
+## Model A — With Cycle Data
+
+- Accuracy: **90.27%**
+- Recall: **97%**
+- ROC-AUC: **0.967**
+
+## Model B — Without Cycle Data
+
+- Recall: **97%**
+- ROC-AUC: **0.819**
+
+### Clinical Objective:
+Prioritize **high recall** to minimize false negatives in screening.
+
+---
+
+# Features Used
+
+### Clinical Features
 
 - Age (yrs)
 - Cycle (R/I)
-- Cycle length (days)
-- Weight gain (Y/N)
-- Hair growth (Y/N)
-- Skin darkening (Y/N)
-- Hair loss (Y/N)
-- Pimples (Y/N)
-- Fast food (Y/N)
-- Regular exercise (Y/N)
+- Cycle Length (days)
+- Weight Gain
+- Hair Growth
+- Skin Darkening
+- Hair Loss
+- Pimples
+- Fast Food Consumption
+- Regular Exercise
 - BMI
 
-Additional:
+### Additional Feature
 
-- Sleep Rating (1–10) (used for advisory only)
-
----
-
-Project Structure:
-
-pcos_project/
-│
-├── app/
-│   └── main.py              # FastAPI app
-│
-├── ml/
-│   ├── models/
-│   │   ├── pcos_model.pkl
-│   │   ├── pcos_model_no_cycle.pkl
-│   │
-│   ├── predict.py
-│   ├── train_model.py
-│   │
-│   ├── data/
-│   │   └── pcos_combined_dataset.csv
-│
-├── requirements.txt
-├── README.md
-├── .gitignore
+- Sleep Rating (1–10)
 
 ---
 
-Installation & Setup: 
+# FastAPI Backend
 
-1. Clone Repository
+The Machine Learning models are exposed using **FastAPI**.
 
-git clone https://github.com/aniteshhalderofficial-commits/pcos-ml-model.git
-cd pcos-ml-model
+### Endpoint
 
----
+```http
+POST /predict
+```
 
-2. Create Virtual Environment
+### Sample Request
 
-python -m venv venv
-venv\Scripts\activate   # Windows
-
----
-
-3. Install Dependencies
-
-pip install -r requirements.txt
-
----
-
-Run the API:
-
-uvicorn app.main:app --reload
-
-Open in browser:
-
-http://127.0.0.1:8000/docs
-
----
-
-API Endpoint:
-
-🔹 POST "/predict"
-
----
-
-Sample Request
-
+```json
 {
   "Age_yrs": 22,
   "Cycle_R_I": 4,
@@ -146,65 +221,196 @@ Sample Request
   "Height_cm": 150,
   "Sleep_Rating_1_10": 5
 }
+```
 
----
+### Sample Response
 
-Sample Response
-
+```json
 {
   "risk_probability": 0.81,
   "risk_stage": "High Risk",
   "prediction_confidence": "High confidence prediction",
   "model_with_cycle": 0.92,
   "model_without_cycle": 0.70,
-  "lifestyle_recommendations": [...],
+  "lifestyle_recommendations": [],
   "sleep_advisory": "Average sleep quality..."
 }
+```
 
 ---
 
-Important Notes:
+# Flutter Mobile Application
 
-- This system is designed for early risk screening, not diagnosis
-- Clinical validation is required before real-world use
-- Cycle irregularity alone does not confirm PCOS
+A complete **cross-platform Flutter application** was developed to make the system easily accessible.
+
+### Main Screens
+
+- Splash Screen
+- Login Screen
+- Home Screen
+- Assessment Form
+- Result Screen
+
+### App Features
+
+1. User authentication  
+2. Guest mode  
+3. Health assessment form  
+4. Real-time API integration  
+5. Circular risk gauge visualization  
+6. Prediction display  
+7. Recommendations section
 
 ---
 
-Model Performance (Approximately):
+# Tech Stack
 
-- Accuracy: ~0.88 – 0.91
-- ROC-AUC: ~0.93 – 0.97
-- High Recall (important for medical screening)
-
----
-
-Tech Stack:
-
+### Machine Learning
 - Python
 - Scikit-learn
+- Gradient Boosting
+- SMOTE
+- Pandas
+- NumPy
+
+### Backend
 - FastAPI
-- Pandas / NumPy
+- Pydantic
 - Uvicorn
+- MongoDB
+
+### Frontend
+- Flutter
+- Dart
+
+### Deployment
+- Render Cloud Platform
 
 ---
 
-Future Improvements:
+# Project Structure
 
-- Add hormonal & ultrasound data
-- Improve dataset diversity
-- Deploy on cloud (Render / AWS)
-- Add SHAP explainability
+```text
+pcos-ml-model/
+│
+├── app/
+│   └── main.py
+│
+├── ml/
+│   ├── models/
+│   │   ├── pcos_model.pkl
+│   │   ├── pcos_model_no_cycle.pkl
+│   │
+│   ├── predict.py
+│   ├── train_model.py
+│   └── data/
+│
+├── lib/                # Flutter App
+├── android/
+├── ios/
+├── web/
+│
+├── requirements.txt
+├── README.md
+└── .gitignore
+```
 
 ---
 
-Contributors:
+# Installation & Setup
 
-- ML Model & Backend: Anitesh Halder
-- App Building and Integration: Anand Singh
+## Clone Repository
+
+```bash
+git clone https://github.com/aniteshhalderofficial-commits/pcos-ml-model.git
+cd pcos-ml-model
+```
 
 ---
 
-License:
+## Backend Setup
 
-For academic and educational use.
+### Create Virtual Environment
+
+```bash
+python -m venv venv
+```
+
+### Activate Environment
+
+**Windows**
+
+```bash
+venv\Scripts\activate
+```
+
+### Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Run FastAPI
+
+```bash
+uvicorn app.main:app --reload
+```
+
+Open:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+---
+
+## Flutter App Setup
+
+```bash
+flutter pub get
+flutter run
+```
+
+---
+
+# Future Improvements
+
+- SHAP Explainability
+- Hormonal test integration
+- Ultrasound-based features
+- Play Store deployment
+- Cloud synchronization
+- Wearable device integration
+- Multi-class phenotype prediction
+
+---
+
+# Contributors
+
+### Anitesh Halder
+**Machine Learning & Backend**
+
+- Dataset collection & preprocessing
+- Feature engineering
+- Dual-model ML architecture
+- Model training & evaluation
+- FastAPI backend
+- MongoDB integration
+- API deployment on Render
+
+### Anand Singh
+**Flutter App & Integration**
+
+- Flutter mobile application
+- UI/UX implementation
+- API integration
+- Form handling
+- Risk visualization
+- Authentication & guest mode
+- End-to-end app testing
+
+---
+
+# License
+
+For **academic and educational purposes only**.
