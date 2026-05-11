@@ -1,4 +1,4 @@
-# 🩺 PCOS Early Risk Detection System using Machine Learning, FastAPI & Flutter
+# PCOS Early Risk Detection System using Machine Learning, FastAPI & Flutter
 
 An AI-powered **Early Risk Prediction System for Polycystic Ovary Syndrome (PCOS)** that combines **Machine Learning**, a **FastAPI backend**, and a **Flutter-based mobile application** to provide **non-invasive, instant, and accessible PCOS risk screening**.
 
@@ -10,16 +10,16 @@ The system predicts early PCOS risk using a **dual-model Gradient Boosting archi
 
 ## Key Features
 
-✅ Early PCOS risk prediction using Machine Learning  
-✅ Dual-model architecture to reduce cycle dominance bias  
-✅ FastAPI REST API backend for real-time predictions  
-✅ Flutter mobile application (Android/iOS/Web support)  
-✅ Lifestyle recommendations based on prediction outcome  
-✅ Sleep advisory integration  
-✅ Five-tier risk stratification framework  
-✅ Guest mode + authenticated user support  
-✅ Prediction history support  
-✅ Cloud deployment ready (Render)
+1. Early PCOS risk prediction using Machine Learning  
+2. Dual-model architecture to reduce cycle dominance bias  
+3. FastAPI REST API backend for real-time predictions  
+4. Flutter mobile application (Android/iOS/Web support)  
+5. Lifestyle recommendations based on prediction outcome  
+6. Sleep advisory integration  
+7. Five-tier risk stratification framework  
+8. Guest mode + authenticated user support  
+9. Prediction history support  
+10. Cloud deployment ready (Render)
 
 ---
 
